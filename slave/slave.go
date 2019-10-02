@@ -4,25 +4,16 @@ import (
     "bufio"
     "bytes"
     "fmt"
-    "io"
+    "golang.org/x/net/ipv4"
     "log"
     "net"
-    "os"
     "runtime"
-
-    "golang.org/x/net/ipv4"
 )
 
 const multicastAddr = "224.0.0.1:6666"
 
 func main() {
-    go clientReader()
-    conn, err := net.Dial("udp", multicastAddr)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer conn.Close()
-    mustCopy(conn, os.Stdin)
+    clientReader()
 }
 
 func clientReader() {
@@ -58,11 +49,5 @@ func clientReader() {
         for s.Scan() {
             fmt.Printf("%s from %v\n", s.Text(), addr)
         }
-    }
-}
-
-func mustCopy(dst io.Writer, src io.Reader) {
-    if _, err := io.Copy(dst, src); err != nil {
-        log.Fatal(err)
     }
 }
