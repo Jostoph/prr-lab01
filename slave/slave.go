@@ -7,24 +7,33 @@ import (
     "golang.org/x/net/ipv4"
     "log"
     "net"
+    util "prr-lab01/common"
     "runtime"
 )
 
-const multicastAddr = "224.0.0.1:6666"
+var address string
 
 func main() {
+    // load address from config file
+    config, err := util.LoadConfiguration("common/config.json")
+    if err != nil {
+        log.Fatal(err)
+    }
+    address = config.MulticastAddr + ":" + config.Port
+
+    // read incoming messages
     clientReader()
 }
 
 func clientReader() {
-    conn, err := net.ListenPacket("udp", multicastAddr)
+    conn, err := net.ListenPacket("udp", address)
     if err != nil {
         log.Fatal(err)
     }
     defer conn.Close()
 
     p := ipv4.NewPacketConn(conn)
-    addr, err := net.ResolveUDPAddr("udp", multicastAddr)
+    addr, err := net.ResolveUDPAddr("udp", address)
     if err != nil {
         log.Fatal(err)
     }

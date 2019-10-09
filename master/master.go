@@ -7,10 +7,19 @@ import (
     "prr-lab01/common"
 )
 
-const multicastAddr = "224.0.0.1:6666"
+var address string
 
 func main() {
-    conn, err := net.Dial("udp", multicastAddr)
+
+    // load address from config file
+    config, err := util.LoadConfiguration("common/config.json")
+    if err != nil {
+        log.Fatal(err)
+    }
+    address = config.MulticastAddr + ":" + config.Port
+
+    // open connection
+    conn, err := net.Dial("udp", address)
     if err != nil {
         log.Fatal(err)
     }
