@@ -9,7 +9,10 @@ import (
 
 type Config struct {
     MulticastAddr string `json:"multicast_addr"`
-    Port string `json:"port"`
+    MulticastPort string `json:"multicast_port"`
+    ServerAddr string `json:"srv_addr"`
+    ServerPort string `json:"srv_port"`
+    SyncDelay int `json:"sync_delay"`
 }
 
 func MustCopy(dst io.Writer, src io.Reader) {

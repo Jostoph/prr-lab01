@@ -1,4 +1,7 @@
 {
   "multicast_addr": "224.0.0.1",
-  "port": "6666"
+  "multicast_port": "6666",
+  "srv_addr": "localhost",
+  "srv_port": "8173",
+  "sync_delay": 1000000000
 }
