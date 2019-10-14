@@ -3,6 +3,7 @@ package main
 import (
     "bufio"
     "bytes"
+    "encoding/binary"
     "fmt"
     "golang.org/x/net/ipv4"
     "log"
@@ -20,13 +21,14 @@ var srvPort string
 
 var syncDelay int
 
-var syncId int
+var syncId uint32
 
 var step2ready bool
 
-var timeSys int64
+var timeSys uint32
 var timeGap int64
 var timeDelay int64
+
 
 func main() {
     // load address from config file
@@ -34,6 +36,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+
     address = config.MulticastAddr + ":" + config.MulticastPort
     srvAddress = config.ServerAddr
     srvPort = config.ServerPort
@@ -70,59 +73,47 @@ func clientReader() {
 
     buf := make([]byte, 1024)
     for {
-        n, addr, err := conn.ReadFrom(buf)
+        n, _, err := conn.ReadFrom(buf)
         if err != nil {
             log.Fatal(err)
         }
 
         s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
         for s.Scan() {
-            fmt.Printf("%s from %v\n", s.Text(), addr)
-
-            msg := strings.Split(s.Text(), ",")
+            msg := s.Bytes()
+            fmt.Println(buf[0])
             switch msg[0] {
-            case "S" :
-                onSync(msg[0:])
-            case "F" :
-                onFollowUp(msg[0:])
+            case util.Sync :
+                onSync(msg[:])
+            case util.FollowUp :
+                onFollowUp(msg[:])
             }
         }
     }
 }
 
-func onSync(msg []string) {
-    id, err := strconv.Atoi(msg[1])
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    syncId = id
-    timeSys = time.Now().UnixNano()
-    // TODO REMOVE PRINT
-    fmt.Println("sync from serv : " + strconv.Itoa(id))
+func onSync(msg []byte) {
+    fmt.Println("In onSync") // TODO REMOVE
+    syncId = binary.LittleEndian.Uint32(msg[1:5])
+    timeSys = util.GetMilliTimeStamp()
 }
 
-func onFollowUp(msg []string) {
-    id, err := strconv.Atoi(msg[2])
-    if err != nil {
-        log.Fatal(err)
-    }
-
+func onFollowUp(msg []byte) {
+    fmt.Println("In onFollow") // TODO REMOVE
+    fmt.Println(len(msg))
+    id := binary.LittleEndian.Uint32(msg[5:9])
     if id == syncId {
-        timeMaster, err := strconv.ParseInt(msg[1], 10, 64)
-        if err != nil {
-            log.Fatal(err)
-        }
+       timeMaster := binary.LittleEndian.Uint32(msg[1:5])
 
-        timeGap = timeMaster - timeSys
-        fmt.Println("follow up from serv with gap : " + strconv.FormatInt(timeGap, 10))
+       timeGap = int64(timeMaster) - int64(timeSys)
 
-        if !step2ready {
-            step2ready = true
-            // TODO REMOVE PRINT
-            fmt.Println("step 2 ready")
-            go delayCorrection()
-        }
+       // TODO remove print
+       fmt.Println("follow up from serv with gap : " + strconv.FormatInt(timeGap, 10))
+
+       if !step2ready {
+           step2ready = true
+           go delayCorrection()
+       }
     }
 }
 

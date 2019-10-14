@@ -1,10 +1,12 @@
 package util
 
 import (
+    "encoding/binary"
     "encoding/json"
     "io"
     "log"
     "os"
+    "time"
 )
 
 type Config struct {
@@ -34,3 +36,18 @@ func LoadConfiguration(filename string) (Config, error) {
     err = jsonParser.Decode(&config)
     return config, err
 }
+
+func GetMilliTimeStamp() uint32 {
+    return uint32(time.Now().UnixNano() / int64(time.Millisecond))
+}
+
+func UintToBytes(array *[]byte, u uint32) {
+    binary.LittleEndian.PutUint32(*array, u)
+}
+
+const (
+    Sync byte = 11
+    FollowUp byte = 12
+    DelayRequest byte = 21
+    DelayResponse byte = 22
+)

@@ -3,10 +3,10 @@ package main
 import (
     "bufio"
     "bytes"
+    "encoding/binary"
     "fmt"
     "log"
     "net"
-    "os"
     "prr-lab01/common"
     "strconv"
     "strings"
@@ -31,35 +31,50 @@ func main() {
     }
     defer conn.Close()
 
-    // redirect stdin to connection
-    go util.MustCopy(conn, os.Stdin)
-
-    //
-
+    // start receptionist
     go receptionist(config)
 
     // sync cycle
-    var id int
+    var id uint32
     for {
         id++
-        msg := "S," + strconv.Itoa(id)
-        sendingTime := time.Now()
 
-        // TODO REMOVE PRINT
-        fmt.Println("sync : " + msg)
-        r := strings.NewReader(msg)
+        idBytes := make([]byte, 4)
+        binary.LittleEndian.PutUint32(idBytes, id)
+
+        // add header SYNC
+        msg := make([]byte, 1)
+        msg[0] = util.Sync // = append(msg, util.Sync)
+
+        // add id
+        msg = append(msg, idBytes...)
+        //r := strings.NewReader(msg)
+
         // send message
+        r := bytes.NewReader(msg)
+        util.MustCopy(conn, r)
+        // TODO remove
+        fmt.Println("before sync")
+
+        // add header FOLLOW_UP
+        msg = make([]byte, 1)
+        msg[0] = util.FollowUp//append(msg, util.FollowUp)
+
+        // add time
+        timeBytes := make([]byte, 4)
+        util.UintToBytes(&timeBytes, util.GetMilliTimeStamp())
+        msg = append(msg, timeBytes...)
+
+        // add id
+        msg = append(msg, idBytes...)
+
+        // send message
+        r = bytes.NewReader(msg)
         util.MustCopy(conn, r)
 
-        // TODO change time unit
-        // TODO send bytes
-        msg = "F," + strconv.FormatInt(sendingTime.UnixNano(), 10) + ","+ strconv.Itoa(id)
-        // TODO REMOVE println
-        fmt.Println("followup : " + "F," + strconv.FormatInt(sendingTime.UnixNano(), 10) + ","+ strconv.Itoa(id))
-        r = strings.NewReader(msg)
-        util.MustCopy(conn, r)
-
+        fmt.Println("after sync")
         // TODO k unit config ! (nano now)
+        // sleep until next cycle
         time.Sleep(time.Duration(config.SyncDelay))
     }
 }
