@@ -1,5 +1,5 @@
 // Package util implements the Configuration struct, protocol constants and useful functions
-// used in both master and slave.
+// used in both master and slave. It also contains function to simulate gaps and delays for testing.
 package util
 
 import (
