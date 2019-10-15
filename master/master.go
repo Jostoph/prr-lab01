@@ -1,28 +1,23 @@
 package main
 
 import (
+    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
     "fmt"
     "log"
     "net"
-    "prr-lab01/common"
-    "strconv"
-    "strings"
     "time"
 )
 
-var address string
+var config util.Config
 
 func main() {
-
     // load address from config file
-    config, err := util.LoadConfiguration("common/config.json")
-    if err != nil {
-        log.Fatal(err)
-    }
-    address = config.MulticastAddr + ":" + config.MulticastPort
+    config := util.LoadConfiguration("common/config.json")
+
+    address := config.MulticastAddr + ":" + config.MulticastPort
 
     // open connection
     conn, err := net.Dial("udp", address)
@@ -32,54 +27,45 @@ func main() {
     defer conn.Close()
 
     // start receptionist
-    go receptionist(config)
+    go receptionist()
 
     // sync cycle
     var id uint32
     for {
         id++
-
         idBytes := make([]byte, 4)
         binary.LittleEndian.PutUint32(idBytes, id)
 
-        // add header SYNC
+        // Prepare Sync request
         msg := make([]byte, 1)
-        msg[0] = util.Sync // = append(msg, util.Sync)
+        msg[0] = util.Sync              // Header
+        msg = append(msg, idBytes...)   // Id
 
-        // add id
-        msg = append(msg, idBytes...)
-        //r := strings.NewReader(msg)
+        // Send sync request
+        util.MustCopy(conn, bytes.NewReader(msg))
 
-        // send message
-        r := bytes.NewReader(msg)
-        util.MustCopy(conn, r)
-        // TODO remove
-        fmt.Println("before sync")
-
-        // add header FOLLOW_UP
-        msg = make([]byte, 1)
-        msg[0] = util.FollowUp//append(msg, util.FollowUp)
-
-        // add time
+        // Convert time in byte array
         timeBytes := make([]byte, 4)
         util.UintToBytes(&timeBytes, util.GetMilliTimeStamp())
-        msg = append(msg, timeBytes...)
 
-        // add id
-        msg = append(msg, idBytes...)
+        // Prepare FollowUp request
+        msg = make([]byte, 1)
+        msg[0] = util.FollowUp          // Header
+        msg = append(msg, timeBytes...) // Time
+        msg = append(msg, idBytes...)   // Id
 
-        // send message
-        r = bytes.NewReader(msg)
-        util.MustCopy(conn, r)
+        // Send FollowUp request
+        util.MustCopy(conn, bytes.NewReader(msg))
 
-        fmt.Println("after sync")
+        fmt.Println(util.GetMilliTimeStamp())
+
         // TODO k unit config ! (nano now)
         // sleep until next cycle
         time.Sleep(time.Duration(config.SyncDelay))
     }
 }
 
-func receptionist(config util.Config) {
+func receptionist() {
     conn, err := net.ListenPacket("udp", config.ServerAddr + ":" + config.ServerPort)
     if err != nil {
         log.Fatal(err)
@@ -89,28 +75,38 @@ func receptionist(config util.Config) {
     buf := make([]byte, 1024)
 
     for {
+        fmt.Println("Before ReadFROM")
         n, cliAddr, err := conn.ReadFrom(buf)
+        fmt.Println("After ReadFROM")
         if err != nil {
             log.Fatal(err)
         }
 
-        go worker(&conn, cliAddr, buf, n, time.Now().UnixNano())
+        // Handle communication with a slave
+        go worker(&conn, cliAddr, buf, n, util.GetMilliTimeStamp())
     }
 }
 
-func worker(conn *net.PacketConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
+func worker(conn *net.PacketConn, cliAddr net.Addr, buf []byte, n int, receiveTime uint32) {
     s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
+
     for s.Scan() {
+        msg := s.Bytes()
 
-        msg := strings.Split(s.Text(), ",")
         switch msg[0] {
-        case "R" :
-            res := "Q," + strconv.FormatInt(receiveTime, 10) + "," + msg[1]
+        case util.DelayRequest :
+            // Convert time in byte array
+            timeBytes := make([]byte, 4)
+            util.UintToBytes(&timeBytes, receiveTime)
 
-            // TODO remove debug
-            fmt.Println("send delay response to : " + cliAddr.String())
+            // Prepare DelayResponse request
+            res := make([]byte, 1)
+            res[0] = util.DelayResponse     // Header
+            res = append(res, timeBytes...) // Time
+            res = append(res, msg[1:5]...)  // Id
 
-            if _, err := (*conn).WriteTo([]byte(res), cliAddr); err != nil {
+            // Send DelayResponse request
+            if _, err := (*conn).WriteTo(res, cliAddr); err != nil {
                 log.Fatal(err)
             }
         }

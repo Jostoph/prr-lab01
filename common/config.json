@@ -1,5 +1,5 @@
 {
-  "multicast_addr": "224.0.0.1",
+  "multicast_addr": "226.0.0.1",
   "multicast_port": "6666",
   "srv_addr": "localhost",
   "srv_port": "8173",

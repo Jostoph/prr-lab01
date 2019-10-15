@@ -9,6 +9,7 @@ import (
     "time"
 )
 
+// Get the configuration from a JSON file
 type Config struct {
     MulticastAddr string `json:"multicast_addr"`
     MulticastPort string `json:"multicast_port"`
@@ -23,28 +24,32 @@ func MustCopy(dst io.Writer, src io.Reader) {
     }
 }
 
-func LoadConfiguration(filename string) (Config, error) {
+// Load the configuration file
+func LoadConfiguration(filename string) Config {
     var config Config
     configFile, err := os.Open(filename)
     defer configFile.Close()
 
     if err != nil {
-        return config, err
+        log.Fatal(err)
     }
 
     jsonParser := json.NewDecoder(configFile)
     err = jsonParser.Decode(&config)
-    return config, err
+    return config
 }
 
+// Get current timestamp in millisecond
 func GetMilliTimeStamp() uint32 {
     return uint32(time.Now().UnixNano() / int64(time.Millisecond))
 }
 
+// Convert a uint32 value in an array of byte
 func UintToBytes(array *[]byte, u uint32) {
     binary.LittleEndian.PutUint32(*array, u)
 }
 
+// Enum for protocol header
 const (
     Sync byte = 11
     FollowUp byte = 12
