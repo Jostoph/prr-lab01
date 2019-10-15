@@ -1,12 +1,12 @@
 package main
 
 import (
-    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
     "log"
     "net"
+    "prr-lab01/common"
     "time"
 )
 

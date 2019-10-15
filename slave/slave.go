@@ -1,7 +1,6 @@
 package main
 
 import (
-    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
@@ -9,6 +8,7 @@ import (
     "golang.org/x/net/ipv4"
     "log"
     "net"
+    "prr-lab01/common"
     "runtime"
     "strconv"
     "time"
@@ -164,12 +164,7 @@ func delayCorrection() {
             continue
         }
 
-        n, addr, err := conn.ReadFrom(buf)
-        fmt.Println(addr.String())
-        if addr == nil {
-            fmt.Println("addr is nil")
-        }
-
+        n, _, err := conn.ReadFrom(buf)
         if err != nil {
             log.Fatal(err)
         }
