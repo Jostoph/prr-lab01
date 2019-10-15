@@ -1,7 +1,6 @@
 package main
 
 import (
-    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
@@ -9,6 +8,7 @@ import (
     "golang.org/x/net/ipv4"
     "log"
     "net"
+    "prr-lab01/common"
     "runtime"
     "strconv"
     "time"
@@ -53,6 +53,7 @@ func clientReader() {
     }
 
     buf := make([]byte, 1024)
+    var timeSys uint32
     for {
         n, _, err := conn.ReadFrom(buf)
         if err != nil {
@@ -60,7 +61,6 @@ func clientReader() {
         }
 
         s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
-        var timeSys uint32
 
         for s.Scan() {
             msg := s.Bytes()
@@ -87,6 +87,11 @@ func onFollowUp(msg []byte, timeSys uint32) {
     if id == syncId {
        timeMaster := binary.LittleEndian.Uint32(msg[1:5])
        timeGap = int64(timeMaster) - int64(timeSys)
+
+       fmt.Println("time master is : " + strconv.FormatInt(int64(timeMaster), 10))
+       fmt.Println("time in slave is : " + strconv.FormatInt(int64(timeSys), 10))
+
+       fmt.Println("time gap is :" + strconv.FormatInt(timeGap, 10))
 
        if !step2ready {
            step2ready = true
@@ -119,6 +124,7 @@ func delayCorrection() {
 
     defer conn.Close()
 
+    // TODO remove dead code
     //conn, err := net.Dial("udp", config.ServerAddr + ":" + config.ServerPort)
     //if err != nil {
     //   log.Fatal(err)
@@ -152,12 +158,20 @@ func delayCorrection() {
 
         // TODO Change timeout value
         // Wait delay response
-        conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-        n, err := conn.Read(buf)
+        err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
         if err != nil {
             fmt.Println("Didn't receive a response on time")
             continue
+        }
+
+        n, addr, err := conn.ReadFrom(buf)
+        fmt.Println(addr.String())
+        if addr == nil {
+            fmt.Println("addr is nil")
+        }
+
+        if err != nil {
+            log.Fatal(err)
         }
 
         s := bufio.NewScanner(bytes.NewReader(buf[0:n]))

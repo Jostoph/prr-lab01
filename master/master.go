@@ -1,13 +1,13 @@
 package main
 
 import (
-    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
     "fmt"
     "log"
     "net"
+    "prr-lab01/common"
     "time"
 )
 
@@ -57,7 +57,7 @@ func main() {
         // Send FollowUp request
         util.MustCopy(conn, bytes.NewReader(msg))
 
-        fmt.Println(util.GetMilliTimeStamp())
+        fmt.Println(util.GetMilliTimeStamp()) // TODO remove
 
         // TODO k unit config ! (nano now)
         // sleep until next cycle
@@ -66,7 +66,8 @@ func main() {
 }
 
 func receptionist() {
-    conn, err := net.ListenPacket("udp", config.ServerAddr + ":" + config.ServerPort)
+    // conn, err := net.ListenPacket("udp", config.ServerAddr + ":" + config.ServerPort)
+    conn, err := net.ListenUDP("udp", &net.UDPAddr{IP:[]byte{0,0,0,0},Port:8173,Zone:""})
     if err != nil {
         log.Fatal(err)
     }
@@ -75,19 +76,19 @@ func receptionist() {
     buf := make([]byte, 1024)
 
     for {
-        fmt.Println("Before ReadFROM")
+        fmt.Println("Before ReadFROM") // TODO remove
         n, cliAddr, err := conn.ReadFrom(buf)
-        fmt.Println("After ReadFROM")
+        fmt.Println("After ReadFROM") // TODO remove
         if err != nil {
             log.Fatal(err)
         }
 
         // Handle communication with a slave
-        go worker(&conn, cliAddr, buf, n, util.GetMilliTimeStamp())
+        go worker(conn, cliAddr, buf, n, util.GetMilliTimeStamp())
     }
 }
 
-func worker(conn *net.PacketConn, cliAddr net.Addr, buf []byte, n int, receiveTime uint32) {
+func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime uint32) {
     s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
 
     for s.Scan() {
