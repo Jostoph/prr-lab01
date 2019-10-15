@@ -18,9 +18,9 @@ import (
 
 var config util.Config
 
-var syncId byte // Current sync id
+var syncId byte     // Current sync id
 var step2ready bool // Status of the second PTP phase (set to true when ready)
-var timeGap int64 // time gap between the master and the slave's time
+var timeGap int64   // time gap between the master and the slave's time
 
 // Main function of the Slave programme. It connects to a broadcast channel and waits for
 // the synchronization messages from the master.
