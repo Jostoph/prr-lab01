@@ -1,9 +1,7 @@
 package main
 
 import (
-    "bufio"
     "bytes"
-    "encoding/binary"
     "log"
     "net"
     "prr-lab01/common"
@@ -11,6 +9,8 @@ import (
 )
 
 var config util.Config
+
+// TODO remove useless switch
 
 func main() {
     // load address from config file
@@ -29,16 +29,14 @@ func main() {
     go receptionist()
 
     // sync cycle
-    var id uint32
+    var id byte
     for {
         id++
-        idBytes := make([]byte, 4)
-        binary.LittleEndian.PutUint32(idBytes, id)
 
         // Prepare Sync request
-        msg := make([]byte, 1)
+        msg := make([]byte, 2)
         msg[0] = util.Sync              // Header
-        msg = append(msg, idBytes...)   // Id
+        msg[1] = id                     // Id
 
         // Send sync request
         util.MustCopy(conn, bytes.NewReader(msg))
@@ -51,7 +49,7 @@ func main() {
         msg = make([]byte, 1)
         msg[0] = util.FollowUp          // Header
         msg = append(msg, timeBytes...) // Time
-        msg = append(msg, idBytes...)   // Id
+        msg = append(msg, id)           // Id
 
         // Send FollowUp request
         util.MustCopy(conn, bytes.NewReader(msg))
@@ -63,7 +61,7 @@ func main() {
 }
 
 func receptionist() {
-    // conn, err := net.ListenPacket("udp", config.ServerAddr + ":" + config.ServerPort)
+    // TODO refactor udpAddr
     conn, err := net.ListenUDP("udp", &net.UDPAddr{IP:[]byte{0,0,0,0},Port:8173,Zone:""})
     if err != nil {
         log.Fatal(err)
@@ -85,27 +83,22 @@ func receptionist() {
 }
 
 func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
-    s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
 
-    for s.Scan() {
-        msg := s.Bytes()
+    switch buf[0] {
+    case util.DelayRequest :
+        // Convert time in byte array
+        timeBytes := make([]byte, 8)
+        util.Int64ToByteArray(&timeBytes, receiveTime)
 
-        switch msg[0] {
-        case util.DelayRequest :
-            // Convert time in byte array
-            timeBytes := make([]byte, 8)
-            util.Int64ToByteArray(&timeBytes, receiveTime)
+        // Prepare DelayResponse request
+        res := make([]byte, 1)
+        res[0] = util.DelayResponse     // Header
+        res = append(res, timeBytes...) // Time
+        res = append(res, buf[1])       // Id
 
-            // Prepare DelayResponse request
-            res := make([]byte, 1)
-            res[0] = util.DelayResponse     // Header
-            res = append(res, timeBytes...) // Time
-            res = append(res, msg[1:5]...)  // Id
-
-            // Send DelayResponse request
-            if _, err := (*conn).WriteTo(res, cliAddr); err != nil {
-                log.Fatal(err)
-            }
+        // Send DelayResponse request
+        if _, err := (*conn).WriteTo(res, cliAddr); err != nil {
+            log.Fatal(err)
         }
     }
 }

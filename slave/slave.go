@@ -1,7 +1,6 @@
 package main
 
 import (
-    "bufio"
     "bytes"
     "encoding/binary"
     "fmt"
@@ -16,7 +15,7 @@ import (
 
 var config util.Config
 
-var syncId uint32
+var syncId byte
 var step2ready bool
 var timeGap int64
 
@@ -55,36 +54,31 @@ func clientReader() {
     buf := make([]byte, 1024)
     var timeSys int64
     for {
-        n, _, err := conn.ReadFrom(buf)
+        _, _, err := conn.ReadFrom(buf)
         if err != nil {
             log.Fatal(err)
         }
 
-        s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
+        fmt.Println(buf[0])
 
-        for s.Scan() {
-            msg := s.Bytes()
-            fmt.Println(buf[0])
-
-            switch msg[0] {
-            case util.Sync :
-                timeSys = onSync(msg[:])
-            case util.FollowUp :
-                onFollowUp(msg[:], timeSys)
-            }
+        switch buf[0] {
+        case util.Sync :
+            timeSys = onSync(buf[:])
+        case util.FollowUp :
+            onFollowUp(buf[:], timeSys)
         }
     }
 }
 
 // Handle Sync request
 func onSync(msg []byte) int64 {
-    syncId = binary.LittleEndian.Uint32(msg[1:5])
+    syncId = msg[1]
     return time.Now().UnixNano()
 }
 
 // Handle FollowUp request
 func onFollowUp(msg []byte, timeSys int64) {
-    id := binary.LittleEndian.Uint32(msg[9:13])
+    id := msg[9]
 
     if id == syncId {
        timeMaster := int64(binary.LittleEndian.Uint64(msg[1:9]))
@@ -106,8 +100,8 @@ func onFollowUp(msg []byte, timeSys int64) {
 }
 
 // Handle DelayResponse resquest
-func onDelayResponse(msg []byte, id uint32) (int64, bool){
-    resId := binary.LittleEndian.Uint32(msg[9:13])
+func onDelayResponse(msg []byte, id byte) (int64, bool){
+    resId := msg[9]
     receivedTime := binary.LittleEndian.Uint64(msg[1:9])
 
     return int64(receivedTime), id == resId
@@ -117,7 +111,7 @@ func onDelayResponse(msg []byte, id uint32) (int64, bool){
 func delayCorrection() {
     //minDelay := 4 * syncDelay
     //maxDelay := 10 * syncDelay
-    var id uint32 = 0
+    var id byte
 
     addr, err := net.ResolveUDPAddr("udp", config.ServerAddr + ":" + config.ServerPort)
     if err != nil {
@@ -140,13 +134,11 @@ func delayCorrection() {
         time.Sleep(time.Duration(k))
 
         id++
-        idBytes := make([]byte, 4)
-        binary.LittleEndian.PutUint32(idBytes, id)
 
         // Prepare DelayRequest
-        msg := make([]byte, 1)
+        msg := make([]byte, 2)
         msg[0] = util.DelayRequest      // Header
-        msg = append(msg, idBytes...)   // Id
+        msg[1] = id                     // Id
 
         sendTime := time.Now().UnixNano()
 
@@ -160,30 +152,25 @@ func delayCorrection() {
         // Wait delay response
         err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
         if err != nil {
+            log.Fatal(err)
+        }
+
+        _, _, err = conn.ReadFrom(buf)
+        if err != nil {
             fmt.Println("Didn't receive a response on time")
             continue
         }
 
-        n, _, err := conn.ReadFrom(buf)
-        if err != nil {
-            log.Fatal(err)
-        }
+        switch msg[0] {
+        case util.DelayResponse :
+            mTime, valid := onDelayResponse(msg[:], id)
+            if valid {
+                timeDelay := (mTime - sendTime) / 2
+                timeSys := time.Now().UnixNano()
 
-        s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
-        for s.Scan() {
-            msg := s.Bytes()
-
-            switch msg[0] {
-            case util.DelayResponse :
-                mTime, valid := onDelayResponse(msg[:], id)
-                if valid {
-                    timeDelay := (mTime - sendTime) / 2
-                    timeSys := time.Now().UnixNano()
-
-                    fmt.Println("received delay resp from serv : delay is : " + strconv.FormatInt(timeDelay, 10))
-                    fmt.Println("Total decalage : " + strconv.FormatInt(timeDelay + timeGap, 10))
-                    fmt.Println("Local time synced : " + strconv.FormatInt(timeSys + timeDelay + timeGap, 10))
-                }
+                fmt.Println("received delay resp from serv : delay is : " + strconv.FormatInt(timeDelay, 10))
+                fmt.Println("Total decalage : " + strconv.FormatInt(timeDelay + timeGap, 10))
+                fmt.Println("Local time synced : " + strconv.FormatInt(timeSys + timeDelay + timeGap, 10))
             }
         }
     }
