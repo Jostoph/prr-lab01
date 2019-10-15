@@ -6,7 +6,6 @@ import (
     "io"
     "log"
     "os"
-    "time"
 )
 
 // Get the configuration from a JSON file
@@ -39,14 +38,9 @@ func LoadConfiguration(filename string) Config {
     return config
 }
 
-// Get current timestamp in millisecond
-func GetMilliTimeStamp() uint32 {
-    return uint32(time.Now().UnixNano() / int64(time.Millisecond))
-}
-
 // Convert a uint32 value in an array of byte
-func UintToBytes(array *[]byte, u uint32) {
-    binary.LittleEndian.PutUint32(*array, u)
+func Int64ToByteArray(array *[]byte, i int64) {
+    binary.LittleEndian.PutUint64(*array, uint64(i))
 }
 
 // Enum for protocol header

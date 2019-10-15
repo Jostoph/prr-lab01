@@ -1,13 +1,12 @@
 package main
 
 import (
+    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
-    "fmt"
     "log"
     "net"
-    "prr-lab01/common"
     "time"
 )
 
@@ -19,7 +18,7 @@ func main() {
 
     address := config.MulticastAddr + ":" + config.MulticastPort
 
-    // open connection
+    // Open connection
     conn, err := net.Dial("udp", address)
     if err != nil {
         log.Fatal(err)
@@ -45,8 +44,8 @@ func main() {
         util.MustCopy(conn, bytes.NewReader(msg))
 
         // Convert time in byte array
-        timeBytes := make([]byte, 4)
-        util.UintToBytes(&timeBytes, util.GetMilliTimeStamp())
+        timeBytes := make([]byte, 8)
+        util.Int64ToByteArray(&timeBytes, time.Now().UnixNano())
 
         // Prepare FollowUp request
         msg = make([]byte, 1)
@@ -57,10 +56,8 @@ func main() {
         // Send FollowUp request
         util.MustCopy(conn, bytes.NewReader(msg))
 
-        fmt.Println(util.GetMilliTimeStamp()) // TODO remove
-
         // TODO k unit config ! (nano now)
-        // sleep until next cycle
+        // Sleep until next cycle
         time.Sleep(time.Duration(config.SyncDelay))
     }
 }
@@ -76,19 +73,18 @@ func receptionist() {
     buf := make([]byte, 1024)
 
     for {
-        fmt.Println("Before ReadFROM") // TODO remove
+        // Wait a communication from a slave
         n, cliAddr, err := conn.ReadFrom(buf)
-        fmt.Println("After ReadFROM") // TODO remove
         if err != nil {
             log.Fatal(err)
         }
 
         // Handle communication with a slave
-        go worker(conn, cliAddr, buf, n, util.GetMilliTimeStamp())
+        go worker(conn, cliAddr, buf, n, time.Now().UnixNano())
     }
 }
 
-func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime uint32) {
+func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
     s := bufio.NewScanner(bytes.NewReader(buf[0:n]))
 
     for s.Scan() {
@@ -97,8 +93,8 @@ func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime 
         switch msg[0] {
         case util.DelayRequest :
             // Convert time in byte array
-            timeBytes := make([]byte, 4)
-            util.UintToBytes(&timeBytes, receiveTime)
+            timeBytes := make([]byte, 8)
+            util.Int64ToByteArray(&timeBytes, receiveTime)
 
             // Prepare DelayResponse request
             res := make([]byte, 1)

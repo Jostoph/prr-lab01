@@ -1,6 +1,7 @@
 package main
 
 import (
+    "../common"
     "bufio"
     "bytes"
     "encoding/binary"
@@ -8,7 +9,6 @@ import (
     "golang.org/x/net/ipv4"
     "log"
     "net"
-    "prr-lab01/common"
     "runtime"
     "strconv"
     "time"
@@ -53,7 +53,7 @@ func clientReader() {
     }
 
     buf := make([]byte, 1024)
-    var timeSys uint32
+    var timeSys int64
     for {
         n, _, err := conn.ReadFrom(buf)
         if err != nil {
@@ -76,22 +76,27 @@ func clientReader() {
     }
 }
 
-func onSync(msg []byte) uint32 {
+// Handle Sync request
+func onSync(msg []byte) int64 {
     syncId = binary.LittleEndian.Uint32(msg[1:5])
-    return util.GetMilliTimeStamp()
+    return time.Now().UnixNano()
 }
 
-func onFollowUp(msg []byte, timeSys uint32) {
-    id := binary.LittleEndian.Uint32(msg[5:9])
+// Handle FollowUp request
+func onFollowUp(msg []byte, timeSys int64) {
+    id := binary.LittleEndian.Uint32(msg[9:13])
 
     if id == syncId {
-       timeMaster := binary.LittleEndian.Uint32(msg[1:5])
-       timeGap = int64(timeMaster) - int64(timeSys)
+       timeMaster := int64(binary.LittleEndian.Uint64(msg[1:9]))
+       timeGap = timeMaster - timeSys
 
-       fmt.Println("time master is : " + strconv.FormatInt(int64(timeMaster), 10))
-       fmt.Println("time in slave is : " + strconv.FormatInt(int64(timeSys), 10))
+       fmt.Println(strconv.FormatInt(int64(id), 10) + ") time master is : " +
+                   strconv.FormatInt(timeMaster, 10))
 
-       fmt.Println("time gap is :" + strconv.FormatInt(timeGap, 10))
+       fmt.Println(strconv.FormatInt(int64(id), 10) + ") time in slave is : " +
+                   strconv.FormatInt(timeSys, 10))
+
+       fmt.Println(strconv.FormatInt(int64(id), 10) + ") time gap is :" + strconv.FormatInt(timeGap, 10))
 
        if !step2ready {
            step2ready = true
@@ -100,13 +105,15 @@ func onFollowUp(msg []byte, timeSys uint32) {
     }
 }
 
-func onDelayResponse(msg []byte, id uint32) (mTime uint32, valid bool){
-    resId := binary.LittleEndian.Uint32(msg[5:9])
-    receivedTime := binary.LittleEndian.Uint32(msg[1:5])
+// Handle DelayResponse resquest
+func onDelayResponse(msg []byte, id uint32) (int64, bool){
+    resId := binary.LittleEndian.Uint32(msg[9:13])
+    receivedTime := binary.LittleEndian.Uint64(msg[1:9])
 
-    return receivedTime, id == resId
+    return int64(receivedTime), id == resId
 }
 
+// Check the delay and correct it with the help of a DelayRequest
 func delayCorrection() {
     //minDelay := 4 * syncDelay
     //maxDelay := 10 * syncDelay
@@ -123,13 +130,6 @@ func delayCorrection() {
     }
 
     defer conn.Close()
-
-    // TODO remove dead code
-    //conn, err := net.Dial("udp", config.ServerAddr + ":" + config.ServerPort)
-    //if err != nil {
-    //   log.Fatal(err)
-    //}
-    //defer conn.Close()
 
     for {
         // TODO change
@@ -148,7 +148,7 @@ func delayCorrection() {
         msg[0] = util.DelayRequest      // Header
         msg = append(msg, idBytes...)   // Id
 
-        sendTime := util.GetMilliTimeStamp()
+        sendTime := time.Now().UnixNano()
 
         util.MustCopy(conn, bytes.NewReader(msg))
 
@@ -182,12 +182,12 @@ func delayCorrection() {
             case util.DelayResponse :
                 mTime, valid := onDelayResponse(msg[:], id)
                 if valid {
-                    timeDelay := (int64(mTime) - int64(sendTime)) / 2
-                    timeSys := util.GetMilliTimeStamp()
+                    timeDelay := (mTime - sendTime) / 2
+                    timeSys := time.Now().UnixNano()
 
                     fmt.Println("received delay resp from serv : delay is : " + strconv.FormatInt(timeDelay, 10))
                     fmt.Println("Total decalage : " + strconv.FormatInt(timeDelay + timeGap, 10))
-                    fmt.Println("Local time synced : " + strconv.FormatInt(int64(timeSys) + timeDelay + timeGap, 10))
+                    fmt.Println("Local time synced : " + strconv.FormatInt(timeSys + timeDelay + timeGap, 10))
                 }
             }
         }
