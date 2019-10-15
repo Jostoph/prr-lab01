@@ -1,3 +1,7 @@
+// Package main (master) implements a simple server to synchronize multiple Slave clients
+// using an implementation of the Precise Time Protocol (PTP). The server uses multicast
+// networking and UDP point-to-point connections to communicate with the Slaves.
+// Times are defined by Unix nanoseconds timestamps (int64).
 package main
 
 import (
@@ -11,24 +15,29 @@ import (
 
 var config util.Config
 
+// Main function of the master's programme. It starts the synchronization broadcasting and launches
+// the receptionist routine that will serve the connecting Slaves.
 func main() {
-	// load address from config file
+	// Load configuration file
 	config = util.LoadConfiguration("common/config.json")
 
 	address := config.MulticastAddr + ":" + config.MulticastPort
 
-	// Open connection
+	// Open broadcasting connection
 	conn, err := net.Dial("udp", address)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
 
-	// start receptionist
+	// Start receptionist
 	go receptionist()
 
-	// sync cycle
+	// Verification id
 	var id byte
+
+	// For loop that sends the two synchronization message used int the master-slave time gap correction
+	// every K seconds (SyncDelay, in the configuration file).
 	for {
 		id++
 
@@ -58,13 +67,16 @@ func main() {
 	}
 }
 
+// Point-to-point UDP server that receives arriving clients and delegates them to worker routines.
 func receptionist() {
 
+	// Resolve server address
 	addr, err := net.ResolveUDPAddr("udp", config.ServerAddr+":"+strconv.Itoa(config.ServerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Open connection
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		log.Fatal(err)
@@ -74,20 +86,22 @@ func receptionist() {
 	buf := make([]byte, 1024)
 
 	for {
-		// Wait a communication from a slave
+		// Read incoming Slave packets
 		n, cliAddr, err := conn.ReadFrom(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Handle communication with a slave
+		// Delegate Slave handling to a worker routine
 		go worker(conn, cliAddr, buf, n, time.Now().UnixNano())
 	}
 }
 
+// Handle Slave message and send according response
 func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
 
 	if buf[0] == util.DelayRequest {
+
 		// Convert time in byte array
 		timeBytes := make([]byte, 8)
 		util.Int64ToByteArray(&timeBytes, receiveTime)

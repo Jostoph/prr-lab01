@@ -1,3 +1,5 @@
+// Package util implements the Configuration struct, protocol constants and useful functions
+// used in both master and slave.
 package util
 
 import (
@@ -8,7 +10,7 @@ import (
 	"os"
 )
 
-// Get the configuration from a JSON file
+// Configuration file structure
 type Config struct {
 	MulticastAddr string `json:"multicast_addr"`
 	MulticastPort string `json:"multicast_port"`
@@ -17,6 +19,7 @@ type Config struct {
 	SyncDelay     int    `json:"sync_delay"`
 }
 
+// Copy src input into des input
 func MustCopy(dst io.Writer, src io.Reader) {
 	if _, err := io.Copy(dst, src); err != nil {
 		log.Fatal(err)
@@ -38,12 +41,12 @@ func LoadConfiguration(filename string) Config {
 	return config
 }
 
-// Convert a uint32 value in an array of byte
+// Convert a int64 values in an array of bytes
 func Int64ToByteArray(array *[]byte, i int64) {
 	binary.LittleEndian.PutUint64(*array, uint64(i))
 }
 
-// Enum for protocol header
+// Enum for protocol headers
 const (
 	Sync          byte = 11
 	FollowUp      byte = 12
