@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"golang.org/x/net/ipv4"
 	"log"
+	"math/rand"
 	"net"
 	"../common"
 	"runtime"
@@ -27,6 +28,10 @@ var timeGap int64   // time gap between the master and the slave's time
 func main() {
 	// Load configuration file
 	config = util.LoadConfiguration("common/config.json")
+
+	// Info log
+	fmt.Println("\nStarting Slave...")
+	fmt.Println("Joining group : " + config.MulticastAddr + ":" + config.MulticastPort + "\n")
 
 	multicastAddress := config.MulticastAddr + ":" + config.MulticastPort
 
@@ -63,8 +68,6 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Println(buf[0])
-
 		switch buf[0] {
 		case util.Sync:
 			timeSys = onSync(buf[:])
@@ -92,17 +95,15 @@ func onFollowUp(msg []byte, timeSys int64) {
 		// Computing time gap between master and slave
 		timeGap = timeMaster - timeSys
 
-		fmt.Println(strconv.FormatInt(int64(id), 10) + ") time master is : " +
-			strconv.FormatInt(timeMaster, 10))
-
-		fmt.Println(strconv.FormatInt(int64(id), 10) + ") time in slave is : " +
-			strconv.FormatInt(timeSys, 10))
-
-		fmt.Println(strconv.FormatInt(int64(id), 10) + ") time gap is :" + strconv.FormatInt(timeGap, 10))
+		// Info log
+		fmt.Println("Time Gap Master-Slave : " + time.Duration(timeGap).String())
 
 		// If the first phase (sync-follow_up) is successful we can start the second phase (delay computation)
 		if !step2ready {
 			step2ready = true
+
+			// Info log
+			fmt.Println("Starting second phase, computing delay correction...")
 
 			// Start delay correction routine
 			go delayCorrection()
@@ -122,8 +123,8 @@ func onDelayResponse(msg []byte, id byte) (int64, bool) {
 
 // Check the delay and correct it with the help of a DelayRequest
 func delayCorrection() {
-	//minDelay := 4 * syncDelay
-	//maxDelay := 10 * syncDelay
+	minDelay := 4 * config.SyncDelay
+	maxDelay := 10 * config.SyncDelay
 	var id byte
 
 	port := strconv.Itoa(config.ServerPort)
@@ -142,9 +143,8 @@ func delayCorrection() {
 	// For loop that executes the second phase of the PTP protocol. It sends and receives delay requests
 	// and responses from the master in a random-timed cycle defined by K (SyncDelay, in the configuration file)
 	for {
-		// TODO change
-		// k := rand.Intn(maxDelay - minDelay) + minDelay
-		k := 6 * config.SyncDelay
+		// Computing random waiting time
+		k := rand.Intn(maxDelay-minDelay) + minDelay
 
 		// Wait for next iteration
 		time.Sleep(time.Duration(k) * time.Second)
@@ -159,15 +159,16 @@ func delayCorrection() {
 		// Send time (current system time)
 		sendTime := time.Now().UnixNano()
 
+		// Info log
+		fmt.Println("\nSending Delay Request with id : " + strconv.Itoa(int(id)))
+
 		// Send request
 		util.MustCopy(conn, bytes.NewReader(msg))
 
-		fmt.Println("After mustCopy")
-
 		buf := make([]byte, 1024)
 
-		// Wait delay response
-		err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		// Wait delay response with time out of 5 + syncDelay seconds
+		err := conn.SetReadDeadline(time.Now().Add(time.Duration(5000 + config.SimulationDelay) * time.Millisecond))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -175,7 +176,7 @@ func delayCorrection() {
 		// Read response from master server
 		_, _, err = conn.ReadFrom(buf)
 		if err != nil {
-			fmt.Println("Didn't receive a response on time")
+			fmt.Println("Timeout : Didn't receive a response from the server. Retrying....")
 			continue
 		}
 
@@ -184,13 +185,14 @@ func delayCorrection() {
 			mTime, valid := onDelayResponse(buf[:], id)
 
 			if valid {
-				// Computing delay (ping) between master and slave
+				// Computing delay between master and slave (one way)
 				timeDelay := (mTime - sendTime) / 2
-				timeSys := time.Now().UnixNano()
 
-				fmt.Println("received delay resp from serv : delay is : " + strconv.FormatInt(timeDelay, 10))
-				fmt.Println("Total decalage : " + strconv.FormatInt(timeDelay+timeGap, 10))
-				fmt.Println("Local time synced : " + strconv.FormatInt(timeSys+timeDelay+timeGap, 10))
+				// Info log
+				fmt.Println("Received Delay Response with id : " + strconv.Itoa(int(id)))
+				fmt.Println("Delay Master->Slave is : " + time.Duration(timeDelay).String())
+				fmt.Println("Total time difference Master-Slave (delay + gap) : " +
+					time.Duration(timeDelay+timeGap).String())
 			}
 		}
 	}

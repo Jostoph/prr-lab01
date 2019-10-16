@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"../common"
@@ -21,7 +22,15 @@ func main() {
 	// Load configuration file
 	config = util.LoadConfiguration("common/config.json")
 
+	// Info log
+	fmt.Println("\nStarting Master Server...")
+	fmt.Println("\nSimulated Gap : " + strconv.Itoa(config.SimulationGap) + "ms")
+	fmt.Println("Simulated Master->Slave Delay : " + strconv.Itoa(config.SimulationDelay) + "ms\n")
+
 	address := config.MulticastAddr + ":" + config.MulticastPort
+
+	// Info log
+	fmt.Println("Broadcasting on : " + address + "\n")
 
 	// Open broadcasting connection
 	conn, err := net.Dial("udp", address)
@@ -51,7 +60,11 @@ func main() {
 
 		// Convert time in byte array
 		timeBytes := make([]byte, 8)
-		util.Int64ToByteArray(&timeBytes, time.Now().UnixNano())
+
+		// Artificial gap that can be added to the timestamp (milliseconds)
+		simGap := int64(config.SimulationGap * int(time.Millisecond))
+
+		util.Int64ToByteArray(&timeBytes, time.Now().UnixNano()+simGap)
 
 		// Prepare FollowUp request
 		msg = make([]byte, 1)
@@ -86,18 +99,28 @@ func receptionist() {
 
 	for {
 		// Read incoming Slave packets
-		n, cliAddr, err := conn.ReadFrom(buf)
+		_, cliAddr, err := conn.ReadFrom(buf)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// Delegate Slave handling to a worker routine
-		go worker(conn, cliAddr, buf, n, time.Now().UnixNano())
+		go worker(conn, cliAddr, buf)
 	}
 }
 
 // Handle Slave message and send according response
-func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
+func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte) {
+
+	// Info log
+	fmt.Println("Delay request from Slave : " + cliAddr.String())
+
+	// Add artificial reception delay
+	util.SimulateDelay(config.SimulationDelay)
+
+	// Get timestamp of reception
+	receiveTime := time.Now().UnixNano()
+
 	if buf[0] == util.DelayRequest {
 		// Convert time in byte array
 		timeBytes := make([]byte, 8)
