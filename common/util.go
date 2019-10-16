@@ -12,11 +12,13 @@ import (
 
 // Configuration file structure
 type Config struct {
-	MulticastAddr string `json:"multicast_addr"`
-	MulticastPort string `json:"multicast_port"`
-	ServerAddr    string `json:"srv_addr"`
-	ServerPort    int    `json:"srv_port"`
-	SyncDelay     int    `json:"sync_delay"`
+	MulticastAddr   string `json:"multicast_addr"`
+	MulticastPort   string `json:"multicast_port"`
+	ServerAddr      string `json:"srv_addr"`
+	ServerPort      int    `json:"srv_port"`
+	SyncDelay       int    `json:"sync_delay"`
+	SimulationDelay int    `json:"simulation_delay"`
+	SimulationGap   int    `json:"simulation_gap"`
 }
 
 // Copy src input into des input
