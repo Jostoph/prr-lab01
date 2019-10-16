@@ -4,6 +4,7 @@
 package main
 
 import (
+	"../common"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"prr-lab01/common"
 	"runtime"
 	"strconv"
 	"time"
@@ -128,7 +128,7 @@ func delayCorrection() {
 	var id byte
 
 	port := strconv.Itoa(config.ServerPort)
-	addr, err := net.ResolveUDPAddr("udp", config.ServerAddr+":"+port)
+	addr, err := net.ResolveUDPAddr("udp", config.ServerAddr + ":" + port)
 	if err != nil {
 		log.Fatal(err)
 	}

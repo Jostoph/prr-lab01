@@ -1,5 +1,7 @@
 # PRR Laboratoire 1
 
+Auteur : David Jaquet & Christoph Rouff soit Rueff
+
 ## Objectifs
 
 - Écrire un premier programme de complexité moyenne en `Go` (`Golang`) et se familiariser avec un environnement de programmation `Go`
@@ -46,30 +48,34 @@ Si on veut plusieurs esclave, on peut répéter les numéros 3 et 4. Comme annon
 
 ## Détail sur l'implémentation
 
-Comme dit dans la donnée, nous avons implémenter le protocole `PTP`. Plusieurs choix d'implémentations ont été faits en fonction des informations sur le protocole que nous avons pu trouver sur la page [Wikipédia](https://fr.wikipedia.org/wiki/Precision_Time_Protocol) le décrivant. C'est le cas notamment pour fixer la valeur de la variable `k` décrite dans l'énoncé du laboratoire. En accord avec la page Wikipédia de PTP, cette valeur est fixée généralement à **2 secondes**.
+Comme dit dans l'énoncé, nous avons implémenter le protocole `PTP`. Plusieurs choix d'implémentations ont été faits en fonction des informations sur le protocole que nous avons pu trouver sur la page [Wikipédia](https://fr.wikipedia.org/wiki/Precision_Time_Protocol) le décrivant. C'est le cas notamment pour fixer la valeur de la variable `k` décrite dans l'énoncé du laboratoire. En accord avec la page Wikipédia de `PTP`, cette valeur est fixée généralement à **2 secondes**.
 
 ### Fichier de configuration
 
 Afin qu'il soit plus simple de gérer la configuration de l'application, nous avons implémenté un fichier de configuration au format `JSON`. Voici les variables contenues à l'intérieur de ce dernier :
 
-| Variable       | Valeur    |
-| -------------- | --------- |
-| multicast_addr | 224.0.0.1 |
-| multicast_port | 6666      |
-| srv_addr       | 127.0.0.1 |
-| srv_port       | 8173      |
-| sync_delay     | 2 [sec]   |
+| Variable           | Valeur par défaut | Remarques                                   |
+| ------------------ | ----------------- | ------------------------------------------- |
+| `multicast_addr`   | 224.0.0.1         | Adresse pour le multicast                   |
+| `multicast_port`   | 6666              | Port pour le multicast                      |
+| `srv_addr`         | 127.0.0.1         | Adresse pour la connexion UDP point à point |
+| `srv_port`         | 8173              | Port pour la connexion UDP point à point    |
+| `sync_delay`       | 2 [s]             | Délai de synchronisation (c'est le `k`)     |
+| `simulation_delay` | 0 [ms]            | Simulation d'un délai                       |
+| `simulation_gap`   | 0 [ms]            | Simulation d'un écart                       |
+
+Grâce à notre fichier de configuration, on peut notamment simuler un délai ainsi qu'un écart. Cela permet notamment de tester notre implémentation sur un seul PC et d'être plus proche d'un cas d'utilisation réel.
 
 ### Format des requêtes
 
 Les requêtes sont diffusés selon le format suivant : 
 
-| Requête        | Format                    |
-| -------------- | ------------------------- |
-| SYNC           | [`11`, `<id>`]            |
-| FOLLOW_UP      | [`12`, `Tmaster`, `<id>`] |
-| DELAY_REQUEST  | [`21`, `<id>`]            |
-| DELAY_RESPONSE | [`22`, `Tmaster`, `<id>`] |
+| Requête          | Format                    |
+| ---------------- | ------------------------- |
+| `SYNC`           | [`11`, `<id>`]            |
+| `FOLLOW_UP`      | [`12`, `Tmaster`, `<id>`] |
+| `DELAY_REQUEST`  | [`21`, `<id>`]            |
+| `DELAY_RESPONSE` | [`22`, `Tmaster`, `<id>`] |
 
 Les numéros au début du format de la requête correspondent à un `enum` dans lequel nous avons fixé les valeurs arbitrairement et qu'il soit stocké sur un octet. Le premier nombre correspond au numéro de l'étape et le deuxième correspond à l'ordre des requêtes.
 
@@ -100,3 +106,5 @@ Ce calcul nous donne un nombre de milliseconde égal environ à `‭2'403'893'00
 Cette implémentation étant limité dans le temps avant de rencontré un `overflow`, nous avons choisi de garder les nanosecondes et nos 10 octets.
 
 ### Tests automatisés
+
+Un autre améliorations possibles est l'ajout de tests automatisés. Malheureusement, nous n'en avons pas implémenté la possibilité d'avoir des tests automatisés par manque de temps et de connaissance du langage `Go`.

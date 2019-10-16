@@ -5,11 +5,11 @@
 package main
 
 import (
+	"../common"
 	"bytes"
 	"fmt"
 	"log"
 	"net"
-	"prr-lab01/common"
 	"strconv"
 	"time"
 )
@@ -64,7 +64,7 @@ func main() {
 		// Artificial gap that can be added to the timestamp (milliseconds)
 		simGap := int64(config.SimulationGap * int(time.Millisecond))
 
-		util.Int64ToByteArray(&timeBytes, time.Now().UnixNano()+simGap)
+		util.Int64ToByteArray(&timeBytes, time.Now().UnixNano() + simGap)
 
 		// Prepare FollowUp request
 		msg = make([]byte, 1)
