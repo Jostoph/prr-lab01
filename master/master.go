@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"../common"
+	"prr-lab01/common"
 	"strconv"
 	"time"
 )

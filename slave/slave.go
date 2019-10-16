@@ -11,7 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"../common"
+	"prr-lab01/common"
 	"runtime"
 	"strconv"
 	"time"
@@ -186,7 +186,7 @@ func delayCorrection() {
 
 			if valid {
 				// Computing delay between master and slave (one way)
-				timeDelay := (mTime - sendTime) / 2
+				timeDelay := (mTime - (sendTime + timeGap)) / 2
 
 				// Info log
 				fmt.Println("Received Delay Response with id : " + strconv.Itoa(int(id)))

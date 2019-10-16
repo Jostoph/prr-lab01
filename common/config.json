@@ -4,6 +4,6 @@
   "srv_addr": "127.0.0.1",
   "srv_port": 8173,
   "sync_delay": 2,
-  "simulation_delay": 2000,
-  "simulation_gap": 2000
+  "simulation_delay": 0,
+  "simulation_gap": 0
 }
