@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"log"
 	"net"
-	"prr-lab01/common"
+	"../common"
 	"strconv"
 	"time"
 )
@@ -30,14 +30,14 @@ func main() {
 	}
 	defer conn.Close()
 
-	// Start receptionist
+	// Start the receptionist
 	go receptionist()
 
 	// Verification id
 	var id byte
 
-	// For loop that sends the two synchronization message used int the master-slave time gap correction
-	// every K seconds (SyncDelay, in the configuration file).
+	// Sends the two synchronization message used in the master-slave time gap correction
+	// every K seconds (sync_delay in the configuration file).
 	for {
 		id++
 
@@ -69,9 +69,8 @@ func main() {
 
 // Point-to-point UDP server that receives arriving clients and delegates them to worker routines.
 func receptionist() {
-
 	// Resolve server address
-	addr, err := net.ResolveUDPAddr("udp", config.ServerAddr+":"+strconv.Itoa(config.ServerPort))
+	addr, err := net.ResolveUDPAddr("udp", config.ServerAddr + ":" + strconv.Itoa(config.ServerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -99,9 +98,7 @@ func receptionist() {
 
 // Handle Slave message and send according response
 func worker(conn *net.UDPConn, cliAddr net.Addr, buf []byte, n int, receiveTime int64) {
-
 	if buf[0] == util.DelayRequest {
-
 		// Convert time in byte array
 		timeBytes := make([]byte, 8)
 		util.Int64ToByteArray(&timeBytes, receiveTime)

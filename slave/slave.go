@@ -10,7 +10,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"log"
 	"net"
-	"prr-lab01/common"
+	"../common"
 	"runtime"
 	"strconv"
 	"time"
@@ -25,7 +25,6 @@ var timeGap int64   // time gap between the master and the slave's time
 // Main function of the Slave programme. It connects to a broadcast channel and waits for
 // the synchronization messages from the master.
 func main() {
-
 	// Load configuration file
 	config = util.LoadConfiguration("common/config.json")
 
