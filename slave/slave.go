@@ -169,7 +169,7 @@ func delayCorrection() {
 		buf := make([]byte, 1024)
 
 		// Wait delay response with time out of 5 + syncDelay seconds
-		err := conn.SetReadDeadline(time.Now().Add(time.Duration(5+config.SyncDelay) * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(time.Duration(5000 + config.SimulationDelay) * time.Millisecond))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -191,6 +191,7 @@ func delayCorrection() {
 
 				// Info log
 				fmt.Println("Received Delay Response with id : " + strconv.Itoa(int(id)))
+				fmt.Println("Delay Master->Slave is : " + time.Duration(timeDelay).String())
 				fmt.Println("Total time difference Master-Slave (delay + gap) : " +
 					time.Duration(timeDelay+timeGap).String())
 			}
